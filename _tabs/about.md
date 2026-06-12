@@ -4,5 +4,22 @@ icon: fas fa-info-circle
 order: 4
 ---
 
-> Add Markdown syntax content to file `_tabs/about.md`{: .filepath } and it will show up on this page.
-{: .prompt-tip }
+### 姓名：李宇文
+### 现居：云南昆明
+### 职业：大龄程序员
+### Github：[https://github.com/liyuwen85](https://github.com/liyuwen85)
+### 开源项目介绍：[项目介绍](https://github.com/Liyuwen85/about/blob/main/%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E4%BB%8B%E7%BB%8D-%E6%9D%8E%E5%AE%87%E6%96%87-202605.pdf)
+### 个人介绍：
+> * 十年以上系统设计与开发经验；主要方向Java后端及架构，辅助C\C++等开发；
+> * 熟悉分布式原理及应用、大规模数据处理和高并发架构，以及企业级应用常用中间件；
+> * 具有中小型电商、小企业财务会计、商贸型ERP等管理信息系统设计与开发经验；
+
+### 当前状态（2024年8月起）：
+> * 自由职业，完成多个小微个体的小程序和进销存系统上线，如畅易随行/滇小妹土特产/海视全球/汽修轮胎连锁进销存等；
+> * 近期学习LLM应用层开发，掌握RAG、Agent等应用开发原理及框架；热衷于Vibe Coding；
+
+### 2020年起主导的项目（就职于云南云思科技2020年03月-2024年07月）
+> * 某市局网络空间资产测绘平台建设；
+> * 某市地铁PC终端桌面运维管理系统；
+> * 某省网公司内外网环境自适应终端安全防御工具；
+> * 某省网公司智能动态WAF系统；
