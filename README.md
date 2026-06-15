@@ -25,6 +25,11 @@ This starter bundles those files from the latest **Chirpy** release along with a
 
 Check out the [theme's docs](https://github.com/cotes2020/jekyll-theme-chirpy/wiki).
 
+## Build
+```
+bundle exec jekyll s
+```
+
 ## Contributing
 
 This repository is automatically updated with new releases from the theme repository. If you encounter any issues or want to contribute to its improvement, please visit the [theme repository][chirpy] to provide feedback.
