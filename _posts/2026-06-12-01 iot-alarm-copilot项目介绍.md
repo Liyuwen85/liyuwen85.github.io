@@ -89,30 +89,30 @@ public boolean tryAcquire() {
 
 ## 领域驱动设计简介
 
-DDD（Domain-Driven Design）一句话——**软件的复杂性来自业务领域本身，代码结构要反映业务模型，不要被技术框架或数据库牵着走**。
+DDD（Domain-Driven Design）的核心是：**软件的复杂性来自业务领域本身，代码结构要反映业务模型，不能被技术框架实现或数据库表牵着走**。
 
-落地分两层：战略层（怎么切）、战术层（怎么写）。网上的DDD介绍有很多，本文不打算把它们全部铺开；笔者只挑出与本项目上最相关的三个核心点展开：**领域划分**、**限界上下文划分**、**防腐层设计**。其它概念（实体、值对象、聚合、领域事件、仓储等）放到后续文章里再逐一拆解。
+落地时分两层：战略层（怎么切）、战术层（怎么写）。网上的DDD介绍有很多，大家可以自行搜索补齐知识。笔者只挑出与本项目上最相关的三个核心点展开：**领域划分**、**限界上下文划分**、**防腐层设计**，其它一些概念（实体、值对象、聚合、领域事件、仓储等）放到后续文章里再逐一拆解。
 
 ### 一、领域划分
 
-DDD 把业务系统切成三类领域，这件事的目的只有一个——回答**有限的工程资源该砸到哪里**。
+DDD 把业务系统切成三类领域，目的是**有限的项目资源应该重点投入到哪里**。
 
 | 类型 | 说明 | 投入策略 |
 |---|---|---|
-| **核心域（Core Domain）** | 业务竞争力所在，不可外包不可妥协 | 最强工程师，最严设计标准 |
+| **核心域（Core Domain）** | 业务竞争力所在，不可外包、不可妥协 | 最核心的资源投入 |
 | **支撑子域（Supporting Subdomain）** | 服务于核心域，但本身不是差异化 | 标准实现即可 |
-| **通用子域（Generic Subdomain）** | 任何系统都需要的通用能力 | 优先用现成方案 |
+| **通用子域（Generic Subdomain）** | 任何系统都需要的通用能力 | 优先集成现成方案 |
 
-具体到本项目，笔者是这么划分的：
+具体到本项目，笔者是这么划分领域的：
 
 | 模块 | 领域类型 | 理由 |
 |---|---|---|
-| iot-context-device | 核心域 | 设备主数据，平台一切的根基 |
-| iot-context-telemetry | 核心域 | 数据语义统一是平台核心价值 |
+| iot-context-device | 核心域 | 设备主数据，平台根基 |
+| iot-context-telemetry | 核心域 | 数据语义统一，平台核心价值 |
 | iot-context-rule | 核心域 | 规则是平台与客户业务对齐的关键 |
-| iot-context-alarm | 核心域 | 项目名就叫 alarm-copilot |
-| iot-context-inspection | 核心域 | 告警处置闭环，平台兑现承诺的地方 |
-| iot-context-access | 支撑子域 | 协议适配重要但非差异化 |
+| iot-context-alarm | 核心域 | 告警也是核心 |
+| iot-context-inspection | 核心域 | 告警处置闭环 |
+| iot-context-access | 支撑子域 | 协议适配重要，但非差异化 |
 | iot-context-command | 支撑子域 | 下行通道，基础能力 |
 | iot-context-ai | 支撑子域 | 增强体验但不决定平台生死 |
 | iot-context-audit | 通用子域 | 几乎所有系统都需要 |
@@ -120,57 +120,46 @@ DDD 把业务系统切成三类领域，这件事的目的只有一个——回�
 | iot-persistence-support | 通用子域 | 持久化技术支撑 |
 | iot-platform-boot | 通用子域 | 启动入口 |
 
-> 这张表看起来只是"分类"，但核心域要花最多时间打磨建模和测试，通用子域则尽量复用框架不重造轮子。
-
 ### 二、限界上下文划分
 
-限界上下文（Bounded Context）是 DDD 战略层最重要、也是最难做对的事。它的定义是**一个模型适用的边界**，例如"商品"在销售上下文叫 SKU、在物流上下文叫包裹。但最主要的是要弄清楚：**边界到底按什么样的标准划分**？
+限界上下文（Bounded Context）是 DDD 战略层最重要、也是最难做对的事情。它的定义是**一个模型适用的边界**，如"商品"在销售上下文叫 SKU、在物流上下文叫包裹。但最主要的是要弄清楚：**边界到底按什么样的标准来划分**？
 
-笔者在本项目里的判断标准是：**变化节奏一致的代码放在一起，节奏不同的必须分开**。举两个本项目的例子：
+笔者在本项目里的标准是：**变化节奏一致的代码放在一起，节奏不同的必须分开；以及受众边界**这两个原则来划分的，如下表所示：
 
-**例子 1：access 和 telemetry 为什么拆开**
+| 上下文 | 划分理由 |
+|---|---|
+| access | 跟着协议/厂家变,变化频率最高,失败模式独特(死信聚合)  |
+| telemetry | 跟着业务语义变,有自己的 schema、派生指标、双层存储  |
+| device | 主数据,变化最慢,有产品模型这种结构一致性最强的聚合  |
+| rule | 配置驱动,可热更新,有自己的状态机(DRAFT/ACTIVE/INACTIVE)  |
+| alarm | 状态机驱动 + 合规留痕,变化节奏与 rule 完全相反  |
+| audit | 受众完全不同(业务/合规),保留策略不同(月-年),不影响业务正确性  |
+| ai | AI能力会扩到巡检建议生成、规则推荐、异常检测、预测维护  |
+| command | 独立“下行命令”是必须的  |
 
-很多团队会把这两个合在一起叫"数据接入"。但本项目里它们是两个独立上下文，原因是：
-
-- `iot-context-access` 跟着**协议、broker、设备厂家**变——MQTT 换 Kafka、新增 CoAP、对接新厂家固件，每一次都要改这里。变化频率高、原因来自外部世界。
-- `iot-context-telemetry` 跟着**业务语义**变——平台要新增什么标准化指标、加什么聚合规则、做什么衍生计算。变化频率中等、原因来自内部业务。
-
-如果合在一起，每次接新厂家固件都要担心"会不会影响指标计算"，每次加新指标都要担心"会不会影响协议解析"。拆开之后，两个上下文各自演进，互不干扰。
-
-**例子 2：rule 和 alarm 为什么拆开**
-
-也有团队会合并成"告警引擎"。本项目里拆开的理由是：
-
-- `iot-context-rule` 是**配置驱动、可热更新**的——规则可能每天调，错了改完就好。
-- `iot-context-alarm` 是**状态机驱动、合规留痕**的——一旦创建就不能随便改，状态流转有严格约束。
-
-混在一起，"改一条规则"和"改一条告警状态"会互相牵制，前者的灵活性会拖累后者的严肃性。
-
-> 所以划分标准就是：限界上下文不是“功能边界”，而是“**变化节奏边界**”。
+当然上面提到`iot-context-inspection`这个上下文独立出来有点多余，应该合并到alarm中，在状态中增加一个“已经工单”的状态，即可与alarm整合在一起。这是一点失误，当时建模块的时，看着顺眼就独立了。
 
 ### 三、防腐层设计
 
-防腐层（Anti-Corruption Layer，简称 ACL）是上下文映射里最该被重视、却经常被当作"DTO 转换器"来使用。它的本质是**核心域必须不依赖外部系统**。
+防腐层（Anti-Corruption Layer，简称 ACL）是上下文映射里最重要的一种设计方式，它的本质是**核心域不能直接依赖外部系统，必须有一个中间层来解耦**。
 
-在IoT 系统的"外部"是物理世界本身——协议、设备厂家、固件版本、外部模型，每一项都在以自己的节奏演化，且没有人会通知你。笔者在本项目里把 ACL 设计成**两道并联、双向工作**的体系：
+在IoT系统的"外部"是协议、设备厂家、固件版本、外部模型等，每一项都在以自己的结构定义，可能会遇到设备升级、协议更新等诸多不可控问题。ACL正好可以解决这个问题，通过适配层，屏蔽外部变化，让核心域专注于自身价值。笔者在本项目里把ACL设计了几个层次：
 
-**第一道：协议适配 ACL（access 上下文承担）**
+**第一层：协议适配 ACL（access 上下文承担）**
 
-`iot-context-access` 整个上下文本质就是一个超大 ACL。它的全部职责是把任意协议、任意 broker 上报的字节流，翻译成核心域能消费的领域命令。本项目的 access 同时挂了 Kafka 和 MQTT 两个适配器，但它们都调用同一个统一入口——下游永远不知道这条数据来自哪种协议。
+`iot-context-access` 整个上下文本质就是一个超大 ACL。它的全部职责是把任意协议、任意 broker 上报的字节流，翻译成核心域能消费的领域命令。本项目的 access 同时挂了 Kafka 和 MQTT（单测时用） 两个适配器，为下游屏蔽了协议细节。
 
-**第二道：语义适配 ACL（telemetry 上下文承担）**
+**第二层：语义适配 ACL（telemetry 上下文承担）**
 
-协议解完了不等于核心域能用——A 厂的字段叫 `t`，B 厂叫 `temperature`，C 厂带单位后缀。telemetry 上下文负责把"原始字段"翻译成"平台标准化指标"。这一道 ACL 比第一道更隐蔽但更值钱——**协议可能十年不变，语义半年就变一次**。
+相同类型的多厂设备定义相差可能很大，如：A 厂的字段叫 `t`，B 厂叫 `temperature`，C 厂带单位后缀。telemetry 上下文负责把"原始字段"翻译成"平台标准化指标"。
 
-**ACL 的双向性：失败也要被处理**
+**第三，失败也要被处理**
 
-这是本项目刻意强化的一个细节，**成功路径上把外部数据翻译成内部模型，失败路径上把外部的混乱翻译成内部的有序**。
-
-access 上下文有一个独立的死信聚合 `AccessDeadLetterLog`，它同时保留了 Kafka 的 partition/offset 和 MQTT 的 topic，这些都是"外部世界的事实"，但在 ACL 里被统一翻译成一个领域概念："接入失败事件"。这样运营就能用领域查询接口去问"今天哪台设备最常失败"，而不是去查询 Kafka 的 dead letter topic。
+access 上下文有一个独立的死信聚合 `AccessDeadLetterLog`，用于处理消息失败的情况。它同时保留了 Kafka 的 partition/offset 和 MQTT 的 topic，这些都是"外部世界的事实"，但在 ACL 里被统一翻译成一个领域概念："接入失败事件"。这样运营同学就可以在后台查询"今天哪台设备最常失败"，而不是直接去查询Kafka的dead letter topic。
 
 ## DDD 在本项目中的实践
 
-前面三个核心点（领域划分、限界上下文、防腐层）讲完了"为什么"，下面回到代码层面，看看它们在 backend 工程里具体长什么样。
+前面三个核心点（领域划分、限界上下文、防腐层）讲完了"为什么"，下面上代码，看看它们在 backend 工程里具体什么样的。
 
 ### 一、统一的“经典四层”模块目录
 
@@ -184,15 +173,13 @@ iot-context-access/
 └── interfaces/         # 接口层：HTTP、Kafka 消费者、MQTT 监听
 ```
 
-如果要找业务逻辑去 domain或application，找外部入口去 interfaces，找ORM去 infrastructure。
-
-> 本项目中的9个上下文都遵守同一套布局。
+如果要找业务逻辑去 domain或application，找外部入口去 interfaces，找ORM去 infrastructure即可。本项目中的context都遵守同一套包结构。
 
 ### 二、上下文之间靠"端口契约"通信，不靠直接依赖
 
-要划分限界上下文，前提是上下文之间不能互相import。本项目用一个独立的 `iot-integration-contract` 模块承担"上下文之间契约"——所有跨上下文的调用，调用方依赖 contract 里定义的**端口**，被调用方在自己上下文里实现这个接口。
+要划分限界上下文，前提是上下文之间不能互相import。本项目用一个独立的 `iot-integration-contract` 模块承担"上下文之间契约"，所有跨上下文的调用，调用方依赖 contract 里定义的**端口接口**，被调用方在自己上下文里实现这个接口。
 
-举个例子，access 在接入遥测时需要查询设备的遥测模型，但它不能直接 import device 上下文。所以 contract 模块里定义了一个端口：
+比如：access 在接入遥测时需要查询设备的遥测模型，但它不能直接 import device 上下文。所以 contract 模块里定义了一个端口：
 
 ```java
 // iot-integration-contract
@@ -220,14 +207,14 @@ public class DeviceTelemetryModelQueryAdapter implements DeviceTelemetryModelQue
 
 access 只看见接口，不看见 `DeviceRepository`、`ProductModel` 这些 device 内部概念。这样做有两个好处：
 
-1. **替换实现零成本**——以后 device 拆成微服务，只要把 `DeviceTelemetryModelQueryAdapter` 换成一个 RPC 客户端，access 上下文一行代码都不用动。
-2. **依赖倒置**——device 反过来依赖 contract，access 也依赖 contract，两个上下文谁也不依赖谁。这就是 DDD 上下文映射里所说的“客户/供应商”关系的标准实现。
+1. **替换实现零成本**，以后 device 拆成独立服务,只需要在 access 一侧新增一个实现 DeviceTelemetryModelQueryPort 的RPC 客户端,在 device 一侧把现有的 DeviceTelemetryModelQueryAdapter 包一层 HTTP/gRPC 接口对外暴露。access上下文业务中的调用代码一行不用改；
+2. **依赖倒置**，device 反过来依赖 contract，access 也依赖 contract，两个上下文谁也不依赖谁。这就是 DDD 上下文映射里所说的“客户/供应商”关系。
 
 ### 三、access 是怎么做"协议无关入口"的
 
-回到防腐层那节提到的"两个适配器调用统一入口"，这件事在代码里是这样实现的：
+回到防腐层那节提到的两个适配器调用统一入口，在代码里是这样实现的：
 
-`interfaces/kafka` 和 `interfaces/mqtt` 是两个独立的协议消费者，但它们都只做一件事——把协议层的字节交给 `TelemetryAccessApplicationService`：
+`interfaces/kafka` 和 `interfaces/mqtt` 是两个独立的协议消费者，但它们都把协议层的字节交给 `TelemetryAccessApplicationService`：
 
 ```java
 // iot-context-access/application
@@ -262,14 +249,12 @@ public class TelemetryAccessApplicationService {
 注意几个细节：
 
 - `ingestMqttTelemetry` 和 `ingestKafkaTelemetry` 是两个不同协议入口，都直接转发到 `ingestTelemetry`。
-- `TelemetryTopic` 是一个值对象，topic 解析失败抛领域异常——把"格式错误"翻译成"业务异常"，正是 ACL 该做的事。
-- 这个方法体内出现了三个端口（`deviceTelemetryIngestionPort`、`deviceTelemetryModelQueryPort`、`telemetryIngestApplicationService`），分别来自 device、device、telemetry 上下文——access 自己什么主数据都没有，全靠端口拿。这正是它作为"超大 ACL"而存在的原因。
+- `TelemetryTopic` 是一个值对象，topic 解析失败抛领域异常——把"格式错误"翻译成"业务异常"，这正是 ACL的职责。
+- 这个方法体内出现了三个端口`deviceTelemetryIngestionPort`、`deviceTelemetryModelQueryPort`、`telemetryIngestApplicationService`，分别来自 device、device、telemetry 上下文，access 自己什么主数据都没有，全靠端口调用。
 
 ### 四、上下文之间靠"领域事件"流转
 
-端口适配器解决了"调用关系"，领域事件解决的是"通知关系"。
-
-本项目的上行主链是用一连串领域事件串起来的：
+端口适配器解决了"调用关系"，领域事件解决的是"通知关系"。本项目的上行主链是用一连串领域事件串起来的：
 
 ```
 TelemetryRecorded  →  RuleTriggered  →  AlarmCreated  →  (并行) AlarmAiSummaryGenerated / InspectionTicketCreated / AuditLogged
@@ -293,7 +278,7 @@ public record TelemetryRecordedEvent(
 }
 ```
 
-在当前的单体形态下，事件由 Spring 的 `ApplicationEventPublisher` 派发，下游上下文用 `@EventListener` 订阅。例如 rule 上下文是这样消费遥测事件的：
+在当前的单体形态下，事件由 Spring 的 `ApplicationEventPublisher` 派发，下游上下文用 `@EventListener` 订阅。如 rule 上下文是这样消费遥测事件的：
 
 ```java
 @Component
@@ -307,18 +292,15 @@ public class TelemetryRecordedRuleHandler {
 }
 ```
 
-这种事件流转方式有两个好处：
-
-1. **下游可以独立扩展**——AI、巡检、审计三个上下文都订阅 `AlarmCreatedEvent`，但谁都不知道彼此的存在。新增一个订阅方完全不影响其他人。
-2. **方便未来微服务化改造**——把 `ApplicationEventPublisher` 替换成 Kafka 生产者、`@EventListener` 替换成 Kafka 消费者，事件契约和业务代码一行不用改。
+这种以后**方便未来微服务化改造**，把 `ApplicationEventPublisher` 替换成 Kafka 生产者、`@EventListener` 替换成 Kafka 消费者，事件契约和业务代码一行不用改。
 
 ### 五、聚合根承担业务一致性
 
-最后一条主线落到上下文内部，**每个上下文里的核心业务一致性，由一个聚合根负责维护**。
+最后看上下文内部，**每个上下文里的核心业务一致性，由一个聚合根负责维护**。
 
 举三个代表性聚合根：
 
-| 聚合根 | 所属上下文 | 守护的不变量 |
+| 聚合根 | 所属上下文 | 作用 |
 |---|---|---|
 | `Alarm` | alarm | 状态机合法性、防重键唯一性、时间字段一致性 |
 | `ProductModel` | device | 能力声明、物模型、遥测模型、影子模型四件套自洽 |
@@ -358,8 +340,10 @@ public record Alarm(
 
 几个关键设计：
 
-- **聚合是不可变的**——每次状态变更都返回新对象，避免共享状态导致的隐蔽 bug。这也是用 Java record 实现聚合的天然优势。
-- **状态机判断不在 if-else 里散落**——交给 `AlarmStatusPolicy` 这个领域策略对象集中管理，谁都不能绕过。
-- **聚合自己负责防重**——`AlarmDedupKey` 由领域规则计算（ruleCode + deviceId + telemetryEventId），下游数据库用它做唯一约束。**幂等性是领域概念，不是技术细节**。
+- **聚合是不可变的**，每次状态变更都返回新对象，避免共享状态导致的隐蔽 bug；用Java record来实现；
+- **状态机判断不在 if-else 块中**，交给 `AlarmStatusPolicy` 这个领域策略对象集中管理，功能清晰；
+- **聚合自己负责防重**，`AlarmDedupKey` 由领域规则计算`ruleCode + deviceId + telemetryEventId`，下游数据库用它做唯一约束,就实现了**幂等性**。
+
+---
 
 > 项目地址：[https://github.com/Liyuwen85/iot-alarm-copilot](https://github.com/Liyuwen85/iot-alarm-copilot){:target="_blank"}
