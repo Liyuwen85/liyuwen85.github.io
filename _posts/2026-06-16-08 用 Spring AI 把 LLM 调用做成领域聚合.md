@@ -5,7 +5,7 @@ categories: [用DDD重构IoT后端系列]
 tags: [IoT, 领域驱动设计, Spring AI, LLM]
 ---
 
-LLM 进入企业系统这两年，最常见的写法是把 OpenAI / 通义千问当一个 HTTP API 调用——拼 prompt、call、parse、写库。这种写法在 demo 里跑得通，在生产环境里会遇到一连串问题。本文从 ai 上下文里的 `AiSummaryTask` 聚合出发，讲清楚**怎么把 LLM 调用本身做成一个有领域语义的异步任务**。
+本文从 ai 上下文里的 `AiSummaryTask` 聚合出发，讲清楚**怎么把 LLM 调用本身做成一个有领域语义的异步任务**。
 
 > 项目地址：[https://github.com/Liyuwen85/iot-alarm-copilot](https://github.com/Liyuwen85/iot-alarm-copilot){:target="_blank"}
 
