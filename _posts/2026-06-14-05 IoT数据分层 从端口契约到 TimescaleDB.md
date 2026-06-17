@@ -2,7 +2,7 @@
 title: 05 IoT 数据分层：从端口契约到 TimescaleDB
 date: 2026-06-14 16:00:00 +0800
 categories: [用DDD重构IoT后端系列]
-tags: [IoT, 领域驱动设计, TimescaleDB, 数据分层, 时序数据，幂等键]
+tags: [IoT, 领域驱动设计, TimescaleDB, 数据分层, 时序数据, 幂等键]
 ---
 
 这篇讲"遥测指标存到哪里、怎么查"，围绕 telemetry 上下文里的两个核心存储抽象`TelemetryHotDataPort` 和 `TelemetrySnapshot`，把 IoT 平台的数据分层体系顺着讲一遍：**业务库、时序库、数据湖、数仓各自该装什么**。
