@@ -92,7 +92,7 @@ public AiSummaryTask {
 }
 ```
 
-一旦任务到达 SUCCEEDED 状态，它一定有完整的摘要内容、模型名、prompt 版本、原始留档。下游订阅 `AlarmAiSummaryGeneratedEvent` 时不必再担心"成功了但 summary 是 null"这种残缺数据。
+一旦任务到达 SUCCEEDED 状态，它一定有完整的摘要内容、模型名、prompt 版本、原始留档，下游订阅 `AlarmAiSummaryGeneratedEvent` 时不必再担心"成功了但 summary 是 null"这种残缺数据。
 
 任务有四个状态，但 `SUCCEEDED` 和 `FAILED` 不是简单的"完成/失败"标记，它们各自要求一组完整字段相应变化。
 
@@ -140,7 +140,7 @@ public void generateIfPending(GenerateAiSummaryCommand command) {
 
 可查看 [AiSummaryApplicationService.java 源码](https://github.com/Liyuwen85/iot-alarm-copilot/blob/main/backend/iot-context-ai/src/main/java/com/example/iotalarmcopilot/ai/application/AiSummaryApplicationService.java){:target="_blank"}
 
-注意这里不是 `@Transactional`，而是用 `TransactionTemplate` **手动控制三个独立事务**。这件事非常关键，下面分别讲。
+注意这里不是 `@Transactional`，而是用 `TransactionTemplate` **手动控制三个独立事务**，这非常关键，下面分别讲。
 
 ### 第一段事务：claim 是抢任务，不做修改
 
@@ -148,7 +148,7 @@ public void generateIfPending(GenerateAiSummaryCommand command) {
 
 如果两个 worker 同时尝试 claim 同一个 PENDING 任务，只有一个能成功，另一个的 update 影响 0 行，应用层拿到 `changed = false`，直接 return。
 
-这是分布式 worker 抢任务的标准做法，把"我要做这个任务"建模成一次原子的状态切换，让数据库帮你拦住竞争。它让"哪个 worker 在做哪个任务"成为数据库层的事实，不需要 Redis 锁、不需要 Zookeeper、不需要消息队列的可见性超时。
+这是分布式 worker 抢任务的标准做法，把"我要做这个任务"建模成一次原子的状态切换，让数据库帮你拦住竞争，它让"哪个 worker 在做哪个任务"成为数据库层的事实，不需要 Redis 锁、不需要 Zookeeper、不需要消息队列的可见性超时。
 
 ### 第二段：LLM 调用不能放在事务里
 
@@ -156,7 +156,7 @@ public void generateIfPending(GenerateAiSummaryCommand command) {
 
 **1. 事务时间窗口不能由外部服务决定**
 
-数据库连接池是有限的。一次 LLM 调用可能 3 秒、可能 30 秒、可能超时。如果这段时间事务还开着，连接被占住，并发一上来就直接挂。
+数据库连接池是有限的，一次 LLM 调用可能 3 秒、可能 30 秒、可能超时，如果这段时间事务还开着，连接被占住，并发一上来就直接挂。
 
 **2. 事务的 ACID 保护对外部调用没用**
 
@@ -164,7 +164,7 @@ public void generateIfPending(GenerateAiSummaryCommand command) {
 
 **3. 异常处理逻辑会被事务搅乱**
 
-`@Transactional` 默认对 RuntimeException 回滚，但 AI 调用失败不是要回滚，失败本身是要记录的领域事实（任务进入 FAILED 状态）。如果整个方法在一个事务里，"记录失败"这一步会被事务回滚机制干掉。
+`@Transactional` 默认对 RuntimeException 回滚，但 AI 调用失败不是要回滚，失败本身是要记录的领域事实（任务进入 FAILED 状态），如果整个方法在一个事务里，"记录失败"这一步会被事务回滚机制干掉。
 
 ### 第三段事务：写回结果，仍然用前置状态当版本号
 
@@ -233,7 +233,7 @@ public final class AiPromptTemplatePolicy {
 - **业务的解释口径**，"summary 用一句话、inspectionSuggestion 列 2-3 条"这些约束是产品诉求，不是技术细节；
 - **可解释性的边界**，"不要编造不可用的遥测数据细节" 这种 guard 是合规要求。
 
-这三件事发生变化，业务行为就发生了变化。它的位置应该和 `AlarmStatusPolicy`、`AlarmDedupKeyPolicy` 平级，都是领域策略，集中管控、版本化、可追溯。
+这三件事发生变化，业务行为就发生了变化，它的位置应该和 `AlarmStatusPolicy`、`AlarmDedupKeyPolicy` 平级，都是领域策略，集中管控、版本化、可追溯。
 
 ### Prompt 模板版本是 `AiProperties` 的一部分
 
@@ -341,7 +341,7 @@ private void publishFailed(AiSummaryTask task) {
 }
 ```
 
-下游（audit）订阅这个事件留痕，运营可以用领域查询接口去问"昨天 AI 摘要失败了多少条、是什么原因"。**失败不是异常，是领域事实**，这条原则在 之前access 死信处的设计里已经讲过，AI 上下文这里再次出现。
+下游（audit）订阅这个事件留痕，运营可以用领域查询接口去问"昨天 AI 摘要失败了多少条、是什么原因"。**失败不是异常，是领域事实**，这条原则在 之前access 死信处的设计里已经讲过。
 
 ---
 
